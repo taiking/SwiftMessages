@@ -309,6 +309,8 @@ open class SwiftMessages {
          label, e.g. "dismiss" when the `interactive` option is used.
         */
         public var dimModeAccessibilityLabel: String = "dismiss"
+        
+        public var isAutoHide = true
 
         /**
          If specified, SwiftMessages calls this closure when an instance of
@@ -546,7 +548,7 @@ open class SwiftMessages {
                         }
                         return
                     }
-                    if current === strongSelf.autohideToken {
+                    if current === strongSelf.autohideToken && current.config.isAutoHide {
                         strongSelf.queueAutoHide()
                     }
                 }
@@ -587,7 +589,7 @@ open class SwiftMessages {
     fileprivate func queueAutoHide() {
         guard let current = _current else { return }
         autohideToken = current
-        if let pauseDuration = current.pauseDuration {
+        if let pauseDuration = current.pauseDuration, current.config.isAutoHide {
             let delayTime = DispatchTime.now() + pauseDuration
             messageQueue.asyncAfter(deadline: delayTime, execute: { [weak self, weak current] in
                 guard let strongSelf = self, let current = current else { return }

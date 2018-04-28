@@ -202,6 +202,8 @@ open class BaseView: UIView, BackgroundViewable, MarginAdjustable {
         }
         return super.intrinsicContentSize
     }
+    
+    open var dismissMoveQuantity: Double?
 }
 
 /*

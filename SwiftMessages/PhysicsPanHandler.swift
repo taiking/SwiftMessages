@@ -86,6 +86,7 @@ open class PhysicsPanHandler {
     private(set) public var state: State?
     private(set) public var isOffScreen = false
     private var restingCenter: CGPoint?
+    private var panStartPoint: CGPoint!
 
     public init(context: AnimationContext, animator: Animator) {
         messageView = context.messageView
@@ -101,10 +102,11 @@ open class PhysicsPanHandler {
     }
 
     @objc func pan(_ pan: UIPanGestureRecognizer) {
-        guard let messageView = messageView, let containerView = containerView, let animator = animator else { return }
+        guard let messageView = messageView as? BaseView, let containerView = containerView, let animator = animator else { return }
         let anchorPoint = pan.location(in: containerView)
         switch pan.state {
         case .began:
+            panStartPoint = anchorPoint
             animator.delegate?.panStarted(animator: animator)
             let state = State(messageView: messageView, containerView: containerView)
             self.state = state
@@ -115,7 +117,7 @@ open class PhysicsPanHandler {
             state.attachmentBehavior = attachmentBehavior
             state.itemBehavior.action = { [weak self, weak messageView, weak containerView] in
                 guard let strongSelf = self, let messageView = messageView, let containerView = containerView, let animator = strongSelf.animator else { return }
-                let view = (messageView as? BackgroundViewable)?.backgroundView ?? messageView
+                let view = messageView.backgroundView ?? messageView
                 let frame = containerView.convert(view.bounds, from: view)
                 if !containerView.bounds.intersects(frame) {
                     strongSelf.isOffScreen = true
@@ -135,10 +137,19 @@ open class PhysicsPanHandler {
             let speed = sqrt(pow(velocity.x, 2) + pow(velocity.y, 2))
             // The multiplier on angular velocity was determined by hand-tuning
             let energy = sqrt(pow(speed, 2) + pow(angularVelocity * 75, 2))
-            if energy > 200 && speed > 600 {
+            
+            let dx = Double(anchorPoint.x - panStartPoint.x)
+            let dy = Double(anchorPoint.y - panStartPoint.y)
+            let diff = sqrt(dx*dx + dy*dy)
+            
+            if let quantity = messageView.dismissMoveQuantity, diff > quantity || energy > 200 && speed > 600 {
                 // Limit the speed and angular velocity to reasonable values
                 let speedScale = speed > 0 ? min(1, 1800 / speed) : 1
-                let escapeVelocity = CGPoint(x: velocity.x * speedScale, y: velocity.y * speedScale)
+                var escapeVelocity = CGPoint(x: velocity.x * speedScale, y: velocity.y * speedScale)
+                if speed < 600 {
+                    escapeVelocity.x *= 600 / speed
+                    escapeVelocity.y *= 600 / speed
+                }
                 let angularSpeedScale = min(1, 10 / fabs(angularVelocity))
                 let escapeAngularVelocity = angularVelocity * angularSpeedScale
                 state.itemBehavior.addLinearVelocity(escapeVelocity, for: messageView)
